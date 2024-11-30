@@ -1,3 +1,5 @@
+// app/components/Footer.tsx
+
 'use client'
 
 import Link from 'next/link'
@@ -5,12 +7,25 @@ import Image from 'next/image'
 import { Facebook, Twitter, Instagram } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { useState } from 'react'
 
 export default function Footer() {
+  const [email] = useState('');
+  const [error, setError] = useState('');
+  
   const handleNewsletterSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    // Logique d'abonnement à la newsletter
-  }
+    e.preventDefault();
+    if (!validateEmail(email)) {
+      setError('Veuillez entrer une adresse email valide.');
+      return;
+    }
+    // Logique d'abonnement
+  };
+  
+  // Exemple de validation simple
+  const validateEmail = (email: string) => {
+    return /\S+@\S+\.\S+/.test(email);
+  };
 
   return (
     <footer className="bg-night-blue text-gray-100 border-t border-gray-600">
@@ -69,17 +84,18 @@ export default function Footer() {
                   placeholder="Votre adresse email"
                   className="flex-grow bg-gray-800 text-gray-200 placeholder-gray-500 border-gray-600 focus:ring-blue-500"
                 />
+                {error && <p className="text-red-500 mt-2">{error}</p>}
                 <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">S&apos;abonner</Button>
               </div>
             </form>
             <div className="flex space-x-4">
-              <Link href="https://facebook.com" target="_blank" className="text-gray-400 hover:text-blue-500">
+              <Link href="https://facebook.com" target="_blank" aria-label="Suivez-nous sur Facebook" className="text-gray-400 hover:text-blue-500">
                 <Facebook className="h-6 w-6" />
               </Link>
-              <Link href="https://twitter.com" target="_blank" className="text-gray-400 hover:text-blue-400">
+              <Link href="https://twitter.com" target="_blank" aria-label="Suivez-nous sur Twitter" className="text-gray-400 hover:text-blue-400">
                 <Twitter className="h-6 w-6" />
               </Link>
-              <Link href="https://instagram.com" target="_blank" className="text-gray-400 hover:text-pink-600">
+              <Link href="https://instagram.com" target="_blank" aria-label="Suivez-nous sur Instagram" className="text-gray-400 hover:text-pink-600">
                 <Instagram className="h-6 w-6" />
               </Link>
             </div>
@@ -90,6 +106,10 @@ export default function Footer() {
           <p>&copy; {new Date().getFullYear()} Orion Prix. Tous droits réservés.</p>
         </div>
       </div>
+      <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="mt-4 text-gray-400 hover:text-gray-200">
+        Retour en haut
+      </button>
+
     </footer>
   )
 }
