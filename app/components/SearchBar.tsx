@@ -22,7 +22,7 @@ export default function SearchBar() {
         placeholder="Rechercher un produit"
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 font-semibold text-gray-800 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+        className="block w-full pl-10 pr-2 py-5 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 font-semibold text-gray-800 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
       />
     </form>
   );
