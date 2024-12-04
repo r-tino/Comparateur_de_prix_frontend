@@ -85,7 +85,6 @@ const AccountSettingsPage = () => {
 
         {/* Section Mise à Jour du Profil */}
         <div className="bg-white p-6 rounded-lg shadow-lg mb-8">
-          <h3 className="text-xl font-semibold text-black mb-4">Mise à Jour du Profil</h3>
           <form onSubmit={handleProfileUpdate}>
             <div className="mb-4">
               <label htmlFor="username" className="block text-sm text-black">Nom</label>
