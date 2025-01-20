@@ -3,6 +3,7 @@
 import { Bell, Edit, Heart, Trash2} from "lucide-react"; // Import the X icon for remove action
 import React, { useState } from "react";
 import Link from "next/link"; // Import Link from next/link
+import Image from "next/image"
 
 const SelectionPage = () => {
   const favorites = [
@@ -58,7 +59,7 @@ const SelectionPage = () => {
           >
             {/* Conteneur séparé pour l'image */}
             <div className="flex-shrink-0 p-4">
-              <img
+              <Image
                 src={product.image}
                 alt={product.name}
                 className="h-40 w-40 rounded-md object-cover"
@@ -118,7 +119,7 @@ const SelectionPage = () => {
             <h2 className="text-xl font-bold mb-4 text-black">
               Alerte Prix pour {selectedProduct.name}
             </h2>
-            <img
+            <Image
               src={selectedProduct.image}
               alt={selectedProduct.name}
               className="h-40 w-full object-cover rounded-md mb-4"

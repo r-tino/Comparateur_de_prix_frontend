@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 
+import Image from "next/image"
+
 const AccountSettingsPage = () => {
   const [user, setUser] = useState({
     username: "John Doe",
@@ -58,7 +60,7 @@ const AccountSettingsPage = () => {
         {/* Section Photo de Profil */}
         <div className="bg-white p-6 rounded-lg shadow-lg mb-8 text-center">
           <h3 className="text-xl font-semibold text-black mb-4">Photo de Profil</h3>
-          <img
+          <Image
             src={newProfileImage || user.profileImage}
             alt="Photo de Profil"
             className="w-28 h-28 rounded-full mx-auto mb-4 object-cover cursor-pointer"

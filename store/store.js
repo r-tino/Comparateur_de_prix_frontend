@@ -116,7 +116,6 @@ export const useAuthStore = create(
           console.error('Erreur lors de la récupération des catégories:', error);
         }
       },
-
       
       addCategorie: async (categorieData) => {
         try {

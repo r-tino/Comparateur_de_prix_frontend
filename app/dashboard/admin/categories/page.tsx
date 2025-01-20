@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,20 +56,11 @@ interface Category {
   attributs?: Record<string, string>;
 }
 
-// interface Attribute {
-//   id_Attribut?: string; // Ajoutez cette ligne pour inclure la propriété `id`
-//   nomAttribut: string;
-//   type: "number" | "boolean" | "date" | "text";
-//   estObligatoire: boolean;
-//   typeAttribut: string;
-// }
-
 const COLORS = [
   "#3B82F6", "#22C55E", "#F97316", "#8B5CF6", "#EC4899", "#14B8A6", "#F59E0B",
 ];
 
 export default function CategoriesPage() {
-  // const [categorieState] = useFetchCategorie();
   const { categorieData, fetchCategories, addCategorie, updateCategorie, deleteCategorie } = useAuthStore();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -125,29 +116,41 @@ export default function CategoriesPage() {
     const formattedCategories = categorieData.map((category: Category) => ({
       ...category,
       createdAt: category.createdAt ? parseISO(category.createdAt).toISOString() : new Date().toISOString(),
+      productsCount: category.productsCount ?? 0, // Assurez-vous que productsCount a une valeur valide
     }));
-    console.log("Formatted Categories:", formattedCategories); // Ajoutez cette ligne
+    console.log("Formatted Categories:", formattedCategories); // Log pour vérifier les données de `formattedCategories`
     setCategories(formattedCategories);
   }, [categorieData]);
-  
-  const formattedCategoriesForChart = categories.length > 0 ? categories.map((category) => ({
-    name: category.nomCategorie,
-    value: category.productsCount || 0, // Assurez-vous que productsCount a une valeur valide
-  })) : [{ name: "Aucune catégorie", value: 1 }];
-  
-  console.log("Formatted Categories for Chart:", formattedCategoriesForChart); // Ajoutez cette ligne
+
+  const formattedCategoriesForChart = useMemo(() => {
+    const data = categories.length > 0 ? categories.map((category) => ({
+      name: category.nomCategorie,
+      value: category.productsCount || 0,
+    })) : [{ name: "Aucune catégorie", value: 1 }];
+
+    console.log("Formatted Categories for Chart:", data); // Log pour vérifier les données de `formattedCategoriesForChart`
+
+    // Validation des Données
+    data.forEach((category) => {
+      if (typeof category.name !== 'string' || typeof category.value !== 'number') {
+        console.error('Invalid data format:', category);
+      }
+    });
+
+    return data;
+  }, [categories]);
 
   const handleEdit = (category: Category) => {
     const categoryId = category.id_Categorie;
-  
+
     if (!categoryId) {
       console.error('ID de catégorie non défini dans handleEdit:', category);
       return;
     }
-  
+
     console.log('Editing category:', category);
     setSelectedCategory({ ...category, id_Categorie: categoryId });
-  
+
     reset({
       nomCategorie: category.nomCategorie,
       isActive: category.isActive,
@@ -210,49 +213,38 @@ export default function CategoriesPage() {
     setLoadingAction(selectedCategory ? "update" : "create");
     try {
       const attributs = data.attributs?.map(attr => ({
-        id: attr.id_Attribut ?? '', // Assurez-vous que l'ID est inclus
+        id: attr.id_Attribut ?? '',
         nomAttribut: attr.key,
         value: attr.value,
         estObligatoire: attr.estObligatoire,
         typeAttribut: attr.typeAttribut,
-        categorieId: selectedCategory?.id_Categorie || '', // Ajoutez l'ID de la catégorie pour lier l'attribut
+        categorieId: selectedCategory?.id_Categorie || '',
       })) || [];
-  
+
       const categoryData = { 
         nomCategorie: data.nomCategorie,
         isActive: data.isActive,
         typeCategory: data.typeCategory,
         attributs,
       };
-  
+
       if (selectedCategory) {
         const categoryId = selectedCategory.id_Categorie;
-  
+
         if (!categoryId) {
           console.error('ID de catégorie non défini dans handleSave');
           return;
         }
-        console.log('Saving updates for category ID:', categoryId);
-        const updatedCategory = await updateCategorie(categoryId, categoryData);
-        console.log('Updated category:', updatedCategory);
-  
-        setCategories(prevCategories => prevCategories.map(c => 
-          c.id_Categorie === categoryId ? { ...c, ...updatedCategory } : c
-        ));
+        await updateCategorie(categoryId, categoryData);
+        await fetchCategories(); // Recharger les catégories après la mise à jour
         showAlert('success', 'Catégorie mise à jour avec succès');
       } else {
-        const newCategory = await addCategorie({
+        await addCategorie({
           ...categoryData,
           createdAt: new Date().toISOString(),
           productsCount: 0,
         });
-        setCategories([...categories, {
-          ...newCategory,
-          nomCategorie: newCategory.nomCategorie || data.nomCategorie,
-          typeCategory: newCategory.typeCategory || data.typeCategory,
-          createdAt: newCategory.createdAt || new Date().toISOString(),
-          isActive: newCategory.isActive !== undefined ? newCategory.isActive : true,
-        }]);
+        await fetchCategories(); // Recharger les catégories après l'ajout
         showAlert('success', 'Catégorie ajoutée avec succès');
       }
       setSelectedCategory(null);
@@ -266,7 +258,7 @@ export default function CategoriesPage() {
       setLoadingAction(null);
     }
   };
-  
+
   const handleAddCategory = () => {
     setIsLoading(true);
     setLoadingAction("add");
@@ -629,7 +621,7 @@ export default function CategoriesPage() {
                     paddingAngle={5}
                     isAnimationActive={true}
                   >
-                    {formattedCategoriesForChart.map((entry, index) => (
+                    {formattedCategoriesForChart.map((entry: {name: string, value: number}, index: number) => (
                       <Cell
                         key={`cell-${index}`}
                         fill={COLORS[index % COLORS.length]}
