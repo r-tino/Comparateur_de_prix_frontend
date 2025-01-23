@@ -19,7 +19,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer, Tooltip } from 'recharts';
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useAuthStore } from "@/store/store";
+import { useCategorieStore } from "@/store"; // Utilisation du nouveau store
 import { motion, AnimatePresence } from "framer-motion";
 // import useFetchCategorie from "@/hooks/categorie.hook";
 
@@ -61,7 +61,7 @@ const COLORS = [
 ];
 
 export default function CategoriesPage() {
-  const { categorieData, fetchCategories, addCategorie, updateCategorie, deleteCategorie } = useAuthStore();
+  const { categorieData, fetchCategories, addCategorie, updateCategorie, deleteCategorie } = useCategorieStore(); // Utilisation du nouveau store
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [modals, setModals] = useState({
@@ -123,20 +123,25 @@ export default function CategoriesPage() {
   }, [categorieData]);
 
   const formattedCategoriesForChart = useMemo(() => {
-    const data = categories.length > 0 ? categories.map((category) => ({
+    const validCategories = categories.filter(category => 
+      typeof category.nomCategorie === 'string' && 
+      typeof category.productsCount === 'number'
+    );
+  
+    const data = validCategories.length > 0 ? validCategories.map((category) => ({
       name: category.nomCategorie,
       value: category.productsCount || 0,
     })) : [{ name: "Aucune catégorie", value: 1 }];
-
+  
     console.log("Formatted Categories for Chart:", data); // Log pour vérifier les données de `formattedCategoriesForChart`
-
+  
     // Validation des Données
     data.forEach((category) => {
       if (typeof category.name !== 'string' || typeof category.value !== 'number') {
         console.error('Invalid data format:', category);
       }
     });
-
+  
     return data;
   }, [categories]);
 

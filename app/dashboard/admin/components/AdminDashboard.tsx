@@ -13,8 +13,9 @@ import { Bell, Box, ShoppingBag, Gift, Grid, TrendingDown, TrendingUp } from 'lu
 import { ClipLoader } from 'react-spinners';
 import useFetchCategorie from "@/hooks/categorie.hook";
 import useFetchOffre from "@/hooks/offre.hook";
-import useFetchProduit from "@/hooks/produit.hook";
+import { useFetchProduit } from "@/hooks/produit.hook";
 import useFetchPromotion from "@/hooks/promotion.hook";
+import { useCategorieStore, useOffreStore, useProduitStore, usePromotionStore } from "@/store";
 import { NotificationsDialog } from "./NotificationsDialog";
 
 const MotionCard = motion(Card);
@@ -30,10 +31,10 @@ export function AdminDashboard() {
   const [produitState] = useFetchProduit();
   const [promotionState] = useFetchPromotion();
 
-  const categorieData: Categorie[] = categorieState?.categorieData || [];
-  const offreData = offreState?.offreData || [];
-  const produitData = produitState?.produitData || [];
-  const promotionData = promotionState?.promotionData || [];
+  const categorieData = useCategorieStore((state) => state.categorieData);
+  const offreData = useOffreStore((state) => state.offreData);
+  const produitData = useProduitStore((state) => state.produitData);
+  const promotionData = usePromotionStore((state) => state.promotionData);
 
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -118,7 +119,7 @@ export function AdminDashboard() {
   ];
 
   // Formater les données pour CategoryChart
-  const categoryChartData = categorieData.map((categorie) => ({
+  const categoryChartData = categorieData.map((categorie: Categorie) => ({
     nom_categorie: categorie.nom,
     total: categorie.total,
   }));

@@ -17,17 +17,9 @@ export default function useFetchPromotion() {
     setData((prev) => ({ ...prev, isLoading: true }));
 
     try {
-      const token = localStorage.getItem("token");
-      console.log('Token:', token); // Log the token to verify it's being retrieved
-
-      if (!token) {
-        throw new Error("Token non disponible");
-      }
-
       const response = await fetch('http://localhost:3001/promotions', {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });

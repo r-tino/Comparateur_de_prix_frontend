@@ -1,14 +1,17 @@
 // hooks/produit.hook.js
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuthStore } from '../store/store';
+import { useProduitStore } from '../store';
 
-export default function useFetchProduit() {
-  const setProduitData = useAuthStore((state) => state.setProduitData);
+const API_URL = 'http://localhost:3001/produits'; // Assurez-vous que l'URL correspond à votre configuration backend
+
+export const useFetchProduit = (page = 1, limit = 10, searchTerm = '', token) => {
+  const setProduitData = useProduitStore((state) => state.setProduitData);
 
   const [getData, setData] = useState({
     isLoading: false,
     produitData: [],
+    total: 0,
     status: null,
     serverError: null,
   });
@@ -17,8 +20,12 @@ export default function useFetchProduit() {
     setData((prev) => ({ ...prev, isLoading: true }));
 
     try {
-      const response = await fetch('http://localhost:3001/produits', {
+      const response = await fetch(`${API_URL}?page=${page}&limit=${limit}&nom=${searchTerm}`, {
         method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`, // Ajout du token pour l'authentification
+          'Content-Type': 'application/json',
+        },
       });
 
       console.log('Statut de la réponse :', response.status);
@@ -26,18 +33,23 @@ export default function useFetchProduit() {
       if (!response.ok) {
         const errorData = await response.json();
         console.error('Erreur du serveur :', errorData);
-        throw new Error(errorData.error || `Erreur HTTP: ${response.status}`);
+        throw new Error(errorData.message || `Erreur HTTP: ${response.status}`);
       }
 
       const data = await response.json();
       console.log('Données Produits reçues :', data.data);
 
       if (Array.isArray(data.data)) {
-        setProduitData(data.data);
+        if (typeof setProduitData === 'function') {
+          setProduitData(data.data);
+        } else {
+          console.error('setProduitData is not a function');
+        }
 
         setData((prev) => ({
           ...prev,
           produitData: data.data,
+          total: data.total,
           status: response.status,
           isLoading: false,
         }));
@@ -53,11 +65,11 @@ export default function useFetchProduit() {
         serverError: error.message || 'Erreur inconnue',
       }));
     }
-  }, [setProduitData]);
+  }, [page, limit, searchTerm, setProduitData, token]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   return [getData];
-}
+};

@@ -5,17 +5,12 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Menu, User, Heart, Bell, Cog, LogOut, 
-  //Search, 
-  Home, ShoppingBag, Gift, Percent, LayoutDashboard } from 'lucide-react';
+import { Menu, User, Heart, Bell, Cog, LogOut, Home, ShoppingBag, Gift, Percent, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-// import { useState } from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAuthStore } from '../../store/store.js';
-import { // AnimatePresence,
-   motion
- } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const navItems = [
   { href: '/', label: 'Accueil', icon: Home },
@@ -30,7 +25,6 @@ export default function Navbar() {
   const isAuthenticated = useAuthStore((state) => state.auth.isAuthenticated);
   const setIsAuthenticated = useAuthStore((state) => state.setIsAuthenticated);
   const user = useAuthStore((state) => state.auth.user);
-  // const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -107,40 +101,6 @@ export default function Navbar() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            {/* <div className="flex-1 flex justify-center px-2 lg:ml-6 lg:justify-end">
-              <div className="max-w-lg w-full lg:max-w-xs">
-                <AnimatePresence>
-                  {isSearchOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, width: 0 }}
-                      animate={{ opacity: 1, width: '100%' }}
-                      exit={{ opacity: 0, width: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="relative"
-                    >
-                      <input
-                        className="block w-full bg-white/20 backdrop-filter backdrop-blur-lg border border-gray-300 rounded-full py-2 pl-10 pr-3 text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 ease-in-out"
-                        type="search"
-                        placeholder="Rechercher..."
-                      />
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Search className="h-5 w-5 text-gray-500" aria-hidden="true" />
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                {!isSearchOpen && (
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setIsSearchOpen(true)}
-                    className="text-gray-600 hover:text-gray-800 focus:outline-none"
-                  >
-                    <Search className="h-6 w-6" />
-                  </motion.button>
-                )}
-              </div>
-            </div> */}
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -317,4 +277,3 @@ export default function Navbar() {
     </nav>
   );
 }
-

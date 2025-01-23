@@ -1,6 +1,6 @@
 // app/page.tsx
 
-'use client'
+'use client';
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
@@ -8,25 +8,26 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, TrendingUp, Percent, ShoppingBag, Bell, Zap, Gift, Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-import useFetchProduit from '../hooks/produit.hook.js';
+import { useFetchProduit } from '../hooks/produit.hook.js';
 import useFetchOffre from '../hooks/offre.hook.js';
 import useFetchPromotion from '../hooks/promotion.hook.js';
-import { useAuthStore } from '../store/store.js';
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Skeleton } from "@/components/ui/skeleton"
+import { useProduitStore, useOffreStore, usePromotionStore } from '../store';
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
   CardContent,
   CardDescription,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/components/ui/tabs"
+} from "@/components/ui/tabs";
 
 // Typing the product and offer
 interface Product {
@@ -57,12 +58,14 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState('trending');
   const router = useRouter();
   
+  // Utilisation des hooks pour mettre à jour les données
   useFetchProduit();
   useFetchOffre();
   useFetchPromotion();
-  const produitData = useAuthStore((state) => state.produitData);
-  const offreData = useAuthStore((state) => state.offreData);
-  const promotionData = useAuthStore((state) => state.promotionData);
+  
+  const produitData = useProduitStore((state) => state.produitData);
+  const offreData = useOffreStore((state) => state.offreData);
+  const promotionData = usePromotionStore((state) => state.promotionData);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -76,7 +79,7 @@ export default function HomePage() {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0 },
     exit: { opacity: 0, y: -20 },
-    transition: { duration: 0.5 }
+    transition: { duration: 0.5 },
   };
 
   const renderStars = (rating: number) => {
@@ -345,7 +348,7 @@ export default function HomePage() {
 
       {/* Coming Soon Feature Preview */}
       <motion.section 
-        className="container mx-auto px-4 py-16 mb-12"
+        className="container mx-auto px-4 py-16 mb--12"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.4 }}
