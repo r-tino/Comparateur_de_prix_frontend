@@ -1,7 +1,5 @@
 // services/auth.ts
 
-// services/auth.ts
-
 interface LoginResponse {
   token: string;
   user: {
