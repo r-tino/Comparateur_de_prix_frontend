@@ -55,6 +55,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useProduitStore, useAuthStore, useCategorieStore } from "@/store";
 import { ImageIcon } from "lucide-react";
+import { uploadImageToCloudinary } from "@/hooks/produit.hook"; // Assurez-vous d'importer la fonction
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -197,57 +198,32 @@ export default function ProductsPage() {
     fetchProduits(currentPage, productsPerPage);
   };
 
-  const uploadImageToServer = async (file: File) => {
-    // Mocking the upload function - Replace with actual Cloudinary upload logic
-    return new Promise<{ url: string }>((resolve) => {
-      setTimeout(() => {
-        resolve({ url: URL.createObjectURL(file) });
-      }, 1000);
-    });
-  };
-
   const handleSave = async (data: ProductFormData) => {
     try {
-      if (!data.name || !data.description || !data.price || data.stock === undefined || !data.category || data.images.length === 0) {
-        throw new Error("Les champs requis sont manquants.");
+      console.log("Données du produit avant envoi:", data);
+      // Vérifiez que toutes les données nécessaires sont présentes et valides
+      if (!data.name || !data.description || !data.price || isNaN(parseFloat(data.price)) || data.stock === undefined || isNaN(data.stock) || !data.category || data.images.length === 0) {
+        throw new Error("Les champs requis sont manquants ou invalides.");
       }
-  
+
+      // Télécharger les images sur Cloudinary et obtenir les URLs
       const imageUrls = await Promise.all(
         data.images.map(async (image) => {
           if (image.file instanceof File) {
-            const result = await uploadImageToServer(image.file);
-            return result.url;
+            return await uploadImageToCloudinary(image.file);
           }
           return image.file;
         })
       );
-  
-      const currentUser = {
-        id: auth.user.id_User,
-        name: auth.user.nom_user,
-        email: auth.user.email,
-        role: auth.user.role,
-      };
-  
+
       const selectedCategory = categorieData?.find((cat: Category) => cat.nomCategorie === data.category);
       const categorieId = selectedCategory ? selectedCategory.id_Categorie : null;
-  
+
       if (!categorieId) {
         throw new Error("Catégorie invalide sélectionnée");
       }
-  
-      interface ProductData {
-        nom_Produit: string;
-        description: string;
-        prixInitial: number;
-        stock: number;
-        categorieId: string;
-        photos: { url: string; couverture: boolean }[];
-        valeursAttributs: Record<string, string>;
-        disponibilite: boolean;
-      }
-  
-      const productData: ProductData = {
+
+      const productData = {
         nom_Produit: data.name,
         description: data.description,
         prixInitial: parseFloat(data.price.replace(/[^0-9.]/g, "")),
@@ -259,29 +235,16 @@ export default function ProductsPage() {
         })),
         valeursAttributs: data.attributes,
         disponibilite: true,
+        utilisateurId: auth.user.id_User, // Utilisation de auth pour récupérer l'ID de l'utilisateur
       };
-  
-      const formData = new FormData();
-      Object.keys(productData).forEach((key) => {
-        if (key === "photos") {
-          productData.photos.forEach((photo, index) => {
-            formData.append(`photos[${index}][url]`, photo.url);
-            formData.append(`photos[${index}][couverture]`, photo.couverture.toString());
-          });
-        } else if (key === "valeursAttributs") {
-          formData.append(key, JSON.stringify(productData[key]));
-        } else {
-          const value = productData[key as keyof ProductData];
-          if (value !== undefined && value !== null) {
-            formData.append(key, value.toString());
-          }
-        }
-      });
-  
+
+      console.log("Données du produit avant envoi:", productData);
+
       if (selectedProduct) {
-        await updateProduit(selectedProduct.id_Produit, formData);
+        await updateProduit(selectedProduct.id_Produit, productData);
       } else {
-        await addProduit(formData, currentUser.id);
+        const result = await addProduit(productData);
+        console.log("Produit ajouté avec succès:", result);
       }
       setSelectedProduct(null);
       setIsAddModalOpen(false);
@@ -289,6 +252,11 @@ export default function ProductsPage() {
       reset();
     } catch (error) {
       console.error("Erreur lors de l'ajout du produit:", error);
+      if (error instanceof Error) {
+        alert("Erreur lors de l'ajout du produit : " + error.message);
+      } else {
+        alert("Erreur lors de l'ajout du produit");
+      }
     }
   };
 
@@ -338,7 +306,6 @@ export default function ProductsPage() {
   }, [currentPage, productsPerPage, fetchProduits, fetchCategories]);
 
   useEffect(() => {
-    console.log(produitData); // Vérifiez les données des produits ici
     setFilteredProducts(filterAndSortProducts(produitData));
   }, [produitData, searchTerm, filterOption]);
 
@@ -488,7 +455,7 @@ export default function ProductsPage() {
                         </TableCell>
                         <TableCell>{product?.category ? product.category.nomCategorie : 'Catégorie non définie'}</TableCell>
                         <TableCell>
-                        <div className="flex flex-col">
+                          <div className="flex flex-col">
                             <span className="font-medium">{product?.utilisateur ? product.utilisateur.nom_user : 'Utilisateur non défini'}</span>
                             <span className="text-sm text-text-secondary">{product?.utilisateur ? product.utilisateur.email : ''}</span>
                           </div>
@@ -719,123 +686,123 @@ export default function ProductsPage() {
                         checked={watchCoverImageIndex === index}
                         onCheckedChange={() => setValue("coverImageIndex", index)}
                         className="h-3 w-3"
-                      />
-                      <Label className="ml-1 text-xs">Couverture</Label>
+                        />
+                        <Label className="ml-1 text-xs">Couverture</Label>
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {fields.length < 5 && (
-                  <div>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        files.forEach((file) => {
-                          if (fields.length < 5) {
-                            append({ file });
-                          }
-                        });
-                      }}
-                      className="hidden"
-                      id={`image-upload-${fields.length}`}
-                    />
-                    <Label
-                      htmlFor={`image-upload-${fields.length}`}
-                      className="flex items-center justify-center w-full h-24 border-2 border-dashed rounded-md cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all duration-300"
-                    >
-                      <ImageIcon className="w-6 h-6 text-gray-400" />
-                    </Label>
-                  </div>
-                )}
+                  ))}
+                  {fields.length < 5 && (
+                    <div>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          files.forEach((file) => {
+                            if (fields.length < 5) {
+                              append({ file });
+                            }
+                          });
+                        }}
+                        className="hidden"
+                        id={`image-upload-${fields.length}`}
+                      />
+                      <Label
+                        htmlFor={`image-upload-${fields.length}`}
+                        className="flex items-center justify-center w-full h-24 border-2 border-dashed rounded-md cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all duration-300"
+                      >
+                        <ImageIcon className="w-6 h-6 text-gray-400" />
+                      </Label>
+                    </div>
+                  )}
+                </div>
+                {errors.images && <p className="mt-1 text-sm text-red-500">{errors.images.message}</p>}
               </div>
-              {errors.images && <p className="mt-1 text-sm text-red-500">{errors.images.message}</p>}
-            </div>
-            <DialogFooter className="mt-6 pt-4 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  setSelectedProduct(null);
-                }}
-                className="bg-white hover:bg-gray-100 text-gray-800 transition-all duration-300"
-              >
+              <DialogFooter className="mt-6 pt-4 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    setSelectedProduct(null);
+                  }}
+                  className="bg-white hover:bg-gray-100 text-gray-800 transition-all duration-300"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white transition-all duration-300 shadow-lg hover:shadow-xl"
+                >
+                  {selectedProduct ? "Modifier" : "Ajouter"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+  
+        <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+          <DialogContent className="bg-white/90 backdrop-filter backdrop-blur-lg">
+            <DialogHeader>
+              <DialogTitle>Confirmer la suppression</DialogTitle>
+              <DialogDescription>
+                Êtes-vous sûr de vouloir supprimer ce produit ? Cette action est irréversible.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-6">
+              <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>
+                Annuler
+              </Button>
+              <Button variant="destructive" onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+                Supprimer
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+  
+        <Dialog open={isMultipleDeleteModalOpen} onOpenChange={setIsMultipleDeleteModalOpen}>
+          <DialogContent className="bg-white/90 backdrop-filter backdrop-blur-lg">
+            <DialogHeader>
+              <DialogTitle>Confirmer la suppression multiple</DialogTitle>
+              <DialogDescription>
+                Êtes-vous sûr de vouloir supprimer les produits sélectionnés ? Cette action est irréversible.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-6">
+              <Button variant="outline" onClick={() => setIsMultipleDeleteModalOpen(false)}>
                 Annuler
               </Button>
               <Button
-                type="submit"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white transition-all duration-300 shadow-lg hover:shadow-xl"
+                variant="destructive"
+                onClick={() => {
+                  handleMultipleDelete();
+                  setIsMultipleDeleteModalOpen(false);
+                }}
+                className="bg-red-600 hover:bg-red-700"
               >
-                {selectedProduct ? "Modifier" : "Ajouter"}
+                Supprimer
               </Button>
             </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <DialogContent className="bg-white/90 backdrop-filter backdrop-blur-lg">
-          <DialogHeader>
-            <DialogTitle>Confirmer la suppression</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer ce produit ? Cette action est irréversible.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mt-6">
-            <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>
-              Annuler
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-              Supprimer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isMultipleDeleteModalOpen} onOpenChange={setIsMultipleDeleteModalOpen}>
-        <DialogContent className="bg-white/90 backdrop-filter backdrop-blur-lg">
-          <DialogHeader>
-            <DialogTitle>Confirmer la suppression multiple</DialogTitle>
-            <DialogDescription>
-              Êtes-vous sûr de vouloir supprimer les produits sélectionnés ? Cette action est irréversible.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mt-6">
-            <Button variant="outline" onClick={() => setIsMultipleDeleteModalOpen(false)}>
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                handleMultipleDelete();
-                setIsMultipleDeleteModalOpen(false);
-              }}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Supprimer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isImagePreviewOpen} onOpenChange={setIsImagePreviewOpen}>
-        <DialogContent className="bg-white/90 backdrop-filter backdrop-blur-lg p-0 max-w-3xl w-full h-full">
-          <DialogTitle className="sr-only">Aperçu de l&apos;image</DialogTitle>
-          <div className="relative w-full h-full flex items-center justify-center">
-            {previewImage ? (
-              <Image
-                src={previewImage || "/placeholder.svg"}
-                alt="Aperçu"
-                className="max-w-full max-h-full object-contain"
-              />
-            ) : (
-              <p className="text-gray-500 text-xl">Aucune image</p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </motion.div>
-  );
-}
+          </DialogContent>
+        </Dialog>
+  
+        <Dialog open={isImagePreviewOpen} onOpenChange={setIsImagePreviewOpen}>
+          <DialogContent className="bg-white/90 backdrop-filter backdrop-blur-lg p-0 max-w-3xl w-full h-full">
+            <DialogTitle className="sr-only">Aperçu de l&apos;image</DialogTitle>
+            <div className="relative w-full h-full flex items-center justify-center">
+              {previewImage ? (
+                <Image
+                  src={previewImage || "/placeholder.svg"}
+                  alt="Aperçu"
+                  className="max-w-full max-h-full object-contain"
+                />
+              ) : (
+                <p className="text-gray-500 text-xl">Aucune image</p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      </motion.div>
+    );
+  }

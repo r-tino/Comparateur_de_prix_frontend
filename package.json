@@ -32,6 +32,7 @@
     "axios": "^1.7.7",
     "chart.js": "^4.4.7",
     "class-variance-authority": "^0.7.0",
+    "cloudinary": "^2.5.1",
     "clsx": "^2.1.1",
     "cookies-next": "^5.0.2",
     "date-fns": "^2.29.3",

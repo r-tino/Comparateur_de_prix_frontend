@@ -5,6 +5,27 @@ import { useProduitStore } from '../store';
 
 const API_URL = 'http://localhost:3001/produits'; // Assurez-vous que l'URL correspond à votre configuration backend
 
+export const uploadImageToCloudinary = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', 'ml_default'); // Utilisez le nom de votre upload preset
+  formData.append('folder', 'échantillons/ecommerce'); // Spécifiez le dossier
+
+  const response = await fetch('https://api.cloudinary.com/v1_1/diwlybpuc/image/upload', {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    console.error('Erreur Cloudinary:', errorData);
+    throw new Error('Erreur lors du téléchargement de l\'image sur Cloudinary: ' + (errorData.error?.message || response.statusText));
+  }
+
+  const result = await response.json();
+  return result.secure_url; // URL de l'image téléchargée
+};
+
 export const useFetchProduit = (page = 1, limit = 10, searchTerm = '', token) => {
   const setProduitData = useProduitStore((state) => state.setProduitData);
 

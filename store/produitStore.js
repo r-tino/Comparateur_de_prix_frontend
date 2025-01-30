@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { uploadImageToCloudinary } from '../hooks/produit.hook';
 
 const API_URL = "http://localhost:3001/produits";
 
@@ -17,7 +18,7 @@ const useProduitStore = create(
 
       setProduitData: (data) => {
         if (Array.isArray(data)) {
-          set(() => ({ produitData: data }));
+          set({ produitData: data });
         } else {
           console.warn("Les données des produits doivent être un tableau valide");
         }
@@ -65,31 +66,29 @@ const useProduitStore = create(
           const token = localStorage.getItem("token");
           if (!token) throw new Error("Token non disponible");
 
-          // Assurez-vous que les valeurs nécessaires sont présentes
-          if (!produitData.nom_Produit || !produitData.description || produitData.prixInitial === undefined || produitData.stock === undefined || !produitData.categorieId) {
-            throw new Error("Les champs requis sont manquants.");
-          }
+          // Téléchargement des images sur Cloudinary et obtention des URLs
+          const imageUrls = await Promise.all(
+            produitData.photos.map(async (photo) => {
+              if (photo.file instanceof File) {
+                return await uploadImageToCloudinary(photo.file);
+              }
+              return photo.url;
+            })
+          );
 
-          const formData = new FormData();
-          formData.append('nom_Produit', produitData.nom_Produit);
-          formData.append('description', produitData.description);
-          formData.append('prixInitial', produitData.prixInitial.toString()); // Convertir en chaîne
-          formData.append('stock', produitData.stock.toString()); // Convertir en chaîne
-          formData.append('categorieId', produitData.categorieId || '');
-          formData.append('valeursAttributs', JSON.stringify(produitData.valeursAttributs || {}));
-          formData.append('disponibilite', produitData.disponibilite ? 'true' : 'false'); // Convertir en chaîne
-
-          produitData.photos.forEach((photo, index) => {
-            formData.append(`photos[${index}][url]`, photo.url); // Assurez-vous que l'URL est une chaîne
-            formData.append(`photos[${index}][couverture]`, photo.couverture ? 'true' : 'false'); // Convertir en chaîne
-          });
+          // Mise à jour des données du produit avec les URLs des images
+          produitData.photos = imageUrls.map((url, index) => ({
+            url,
+            couverture: produitData.photos[index].couverture || false,
+          }));
 
           const response = await fetch(API_URL, {
             method: "POST",
             headers: {
+              "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: formData,
+            body: JSON.stringify(produitData),
           });
 
           if (response.ok) {
@@ -120,26 +119,29 @@ const useProduitStore = create(
           const token = localStorage.getItem("token");
           if (!token) throw new Error("Token non disponible");
 
-          const formData = new FormData();
-          formData.append('nom_Produit', updatedData.nom_Produit);
-          formData.append('description', updatedData.description);
-          formData.append('prixInitial', updatedData.prixInitial.toString()); // Convertir en chaîne
-          formData.append('stock', updatedData.stock.toString()); // Convertir en chaîne
-          formData.append('categorieId', updatedData.categorieId || '');
-          formData.append('valeursAttributs', JSON.stringify(updatedData.valeursAttributs || {}));
-          formData.append('disponibilite', updatedData.disponibilite ? 'true' : 'false'); // Convertir en chaîne
+          // Téléchargement des nouvelles images sur Cloudinary et obtention des URLs
+          const imageUrls = await Promise.all(
+            updatedData.photos.map(async (photo) => {
+              if (photo.file instanceof File) {
+                return await uploadImageToCloudinary(photo.file);
+              }
+              return photo.url;
+            })
+          );
 
-          updatedData.photos.forEach((photo, index) => {
-            formData.append(`photos[${index}][url]`, photo.url); // Assurez-vous que l'URL est une chaîne
-            formData.append(`photos[${index}][couverture]`, photo.couverture ? 'true' : 'false'); // Convertir en chaîne
-          });
+          // Mise à jour des données du produit avec les URLs des images
+          updatedData.photos = imageUrls.map((url, index) => ({
+            url,
+            couverture: updatedData.photos[index].couverture || false,
+          }));
 
           const response = await fetch(`${API_URL}/${id_Produit}`, {
             method: "PATCH",
             headers: {
+              "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: formData,
+            body: JSON.stringify(updatedData),
           });
 
           if (response.ok) {
