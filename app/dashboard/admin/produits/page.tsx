@@ -62,10 +62,10 @@ const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const productSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
-  description: z.string().min(1, "La description est requise"),
-  price: z.string().min(1, "Le prix est requis"),
-  stock: z.number().min(0, "Le stock ne peut pas être négatif"),
-  category: z.string().min(1, "La catégorie est requise"),
+  description: z.string().optional(), // La description n'est plus obligatoire
+  price: z.string().optional(), // Le prix n'est plus obligatoire
+  stock: z.number().min(0, "Le stock ne peut pas être négatif").optional(), // Le stock n'est plus obligatoire
+  category: z.string().optional(), // La catégorie n'est plus obligatoire
   images: z
     .array(
       z.object({
@@ -78,9 +78,9 @@ const productSchema = z.object({
           ),
       })
     )
-    .min(1, "Au moins une image est requise"),
-  coverImageIndex: z.number().min(0, "Une image de couverture doit être sélectionnée"),
-  attributes: z.record(z.string().min(1, "La valeur de l'attribut est requise")),
+    .optional(), // Les images ne sont plus obligatoires
+  coverImageIndex: z.number().min(0, "Une image de couverture doit être sélectionnée").optional(), // L'image de couverture n'est plus obligatoire
+  attributes: z.record(z.string().optional()).optional(), // Les attributs ne sont plus obligatoires
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -108,6 +108,15 @@ interface Product extends Omit<ProductFormData, "images" | "category"> {
     nom_user: string;
     email: string;
     role: string;
+  }; 
+  photos?: Array<{
+    id_Photo: string;
+    url: string;
+    couverture: boolean;
+  }>;
+  categorie?: {
+    id_Categorie: string;
+    nomCategorie: string;
   };
 }
 
@@ -172,7 +181,7 @@ export default function ProductsPage() {
       price: product.prixInitial.toString(),
       stock: product.stock,
       category: product.category?.nomCategorie || '',
-      images: product.images.map((imageUrl) => ({ file: new File([], imageUrl.split("/").pop() || "") })),
+      images: product.images ? product.images.map((imageUrl) => ({ file: new File([], imageUrl.split("/").pop() || "") })) : [],
       coverImageIndex: product.coverImageIndex,
       attributes: product.valeursAttributs || {},
     });
@@ -202,44 +211,40 @@ export default function ProductsPage() {
     try {
       console.log("Données du produit avant envoi:", data);
       // Vérifiez que toutes les données nécessaires sont présentes et valides
-      if (!data.name || !data.description || !data.price || isNaN(parseFloat(data.price)) || data.stock === undefined || isNaN(data.stock) || !data.category || data.images.length === 0) {
-        throw new Error("Les champs requis sont manquants ou invalides.");
+      if (!data.name) {
+        throw new Error("Le nom est requis.");
       }
-
+  
       // Télécharger les images sur Cloudinary et obtenir les URLs
       const imageUrls = await Promise.all(
-        data.images.map(async (image) => {
+        (data.images || []).map(async (image) => {
           if (image.file instanceof File) {
             return await uploadImageToCloudinary(image.file);
           }
           return image.file;
         })
       );
-
+  
       const selectedCategory = categorieData?.find((cat: Category) => cat.nomCategorie === data.category);
       const categorieId = selectedCategory ? selectedCategory.id_Categorie : null;
-
-      if (!categorieId) {
-        throw new Error("Catégorie invalide sélectionnée");
-      }
-
+  
       const productData = {
         nom_Produit: data.name,
-        description: data.description,
-        prixInitial: parseFloat(data.price.replace(/[^0-9.]/g, "")),
-        stock: data.stock,
-        categorieId: categorieId,
+        description: data.description || '',
+        prixInitial: data.price ? parseFloat(data.price.replace(/[^0-9.]/g, "")) : 0,
+        stock: data.stock || 0,
+        categorieId: categorieId || '',
         photos: imageUrls.map((url, index) => ({
           url,
           couverture: index === data.coverImageIndex,
         })),
-        valeursAttributs: data.attributes,
+        valeursAttributs: data.attributes || {},
         disponibilite: true,
-        utilisateurId: auth.user.id_User, // Utilisation de auth pour récupérer l'ID de l'utilisateur
+        utilisateur: { connect: { id_User: auth.user.id_User } },
       };
-
+  
       console.log("Données du produit avant envoi:", productData);
-
+  
       if (selectedProduct) {
         await updateProduit(selectedProduct.id_Produit, productData);
       } else {
@@ -433,14 +438,17 @@ export default function ProductsPage() {
                         </TableCell>
                         <TableCell>
                           <Image
-                            src={product?.coverImage || "/placeholder.svg"}
+                            src={product?.photos?.find(photo => photo.couverture)?.url || "/placeholder.svg"}
                             alt={product?.nom_Produit || "Image"}
                             width={40}
                             height={40}
                             className="object-cover rounded cursor-pointer"
                             onClick={() => {
-                              setPreviewImage(product?.coverImage);
-                              setIsImagePreviewOpen(true);
+                              const coverImage = product?.photos?.find(photo => photo.couverture)?.url;
+                              if (coverImage) {
+                                setPreviewImage(coverImage);
+                                setIsImagePreviewOpen(true);
+                              }
                             }}
                           />
                         </TableCell>
@@ -453,7 +461,7 @@ export default function ProductsPage() {
                             <Star className="mr-1 h-4 w-4 fill-current" /> {product?.qualiteMoyenne}
                           </span>
                         </TableCell>
-                        <TableCell>{product?.category ? product.category.nomCategorie : 'Catégorie non définie'}</TableCell>
+                        <TableCell>{product?.categorie?.nomCategorie || 'Catégorie non définie'}</TableCell>
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-medium">{product?.utilisateur ? product.utilisateur.nom_user : 'Utilisateur non défini'}</span>
@@ -665,13 +673,15 @@ export default function ProductsPage() {
               <div className="grid grid-cols-5 gap-4">
                 {fields.map((field, index) => (
                   <div key={field.id} className="relative">
-                    <Image
-                      src={URL.createObjectURL(watchImages[index].file) || "/placeholder.svg"}
-                      alt={`Image ${index + 1}`}
-                      width={100}
-                      height={100}
-                      className="w-full h-24 object-cover rounded-md shadow-md"
-                    />
+                    {watchImages && watchImages[index] && (
+                      <Image
+                        src={URL.createObjectURL(watchImages[index].file) || "/placeholder.svg"}
+                        alt={`Image ${index + 1}`}
+                        width={100}
+                        height={100}
+                        className="w-full h-24 object-cover rounded-md shadow-md"
+                      />
+                    )}
                     <Button
                       type="button"
                       variant="destructive"
@@ -686,123 +696,125 @@ export default function ProductsPage() {
                         checked={watchCoverImageIndex === index}
                         onCheckedChange={() => setValue("coverImageIndex", index)}
                         className="h-3 w-3"
-                        />
-                        <Label className="ml-1 text-xs">Couverture</Label>
-                      </div>
-                    </div>
-                  ))}
-                  {fields.length < 5 && (
-                    <div>
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []);
-                          files.forEach((file) => {
-                            if (fields.length < 5) {
-                              append({ file });
-                            }
-                          });
-                        }}
-                        className="hidden"
-                        id={`image-upload-${fields.length}`}
                       />
-                      <Label
-                        htmlFor={`image-upload-${fields.length}`}
-                        className="flex items-center justify-center w-full h-24 border-2 border-dashed rounded-md cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all duration-300"
-                      >
-                        <ImageIcon className="w-6 h-6 text-gray-400" />
-                      </Label>
+                      <Label className="ml-1 text-xs">Couverture</Label>
                     </div>
-                  )}
-                </div>
-                {errors.images && <p className="mt-1 text-sm text-red-500">{errors.images.message}</p>}
+                  </div>
+                ))}
+                {fields.length < 5 && (
+                  <div>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        files.forEach((file) => {
+                          if (fields.length < 5) {
+                            append({ file });
+                          }
+                        });
+                      }}
+                      className="hidden"
+                      id={`image-upload-${fields.length}`}
+                    />
+                    <Label
+                      htmlFor={`image-upload-${fields.length}`}
+                      className="flex items-center justify-center w-full h-24 border-2 border-dashed rounded-md cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all duration-300"
+                    >
+                      <ImageIcon className="w-6 h-6 text-gray-400" />
+                    </Label>
+                  </div>
+                )}
               </div>
-              <DialogFooter className="mt-6 pt-4 border-t">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setIsAddModalOpen(false);
-                    setSelectedProduct(null);
-                  }}
-                  className="bg-white hover:bg-gray-100 text-gray-800 transition-all duration-300"
-                >
-                  Annuler
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white transition-all duration-300 shadow-lg hover:shadow-xl"
-                >
-                  {selectedProduct ? "Modifier" : "Ajouter"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-  
-        <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-          <DialogContent className="bg-white/90 backdrop-filter backdrop-blur-lg">
-            <DialogHeader>
-              <DialogTitle>Confirmer la suppression</DialogTitle>
-              <DialogDescription>
-                Êtes-vous sûr de vouloir supprimer ce produit ? Cette action est irréversible.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="mt-6">
-              <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>
-                Annuler
-              </Button>
-              <Button variant="destructive" onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-                Supprimer
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-  
-        <Dialog open={isMultipleDeleteModalOpen} onOpenChange={setIsMultipleDeleteModalOpen}>
-          <DialogContent className="bg-white/90 backdrop-filter backdrop-blur-lg">
-            <DialogHeader>
-              <DialogTitle>Confirmer la suppression multiple</DialogTitle>
-              <DialogDescription>
-                Êtes-vous sûr de vouloir supprimer les produits sélectionnés ? Cette action est irréversible.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="mt-6">
-              <Button variant="outline" onClick={() => setIsMultipleDeleteModalOpen(false)}>
+              {errors.images && <p className="mt-1 text-sm text-red-500">{errors.images.message}</p>}
+            </div>
+            <DialogFooter className="mt-6 pt-4 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  setSelectedProduct(null);
+                }}
+                className="bg-white hover:bg-gray-100 text-gray-800 transition-all duration-300"
+              >
                 Annuler
               </Button>
               <Button
-                variant="destructive"
-                onClick={() => {
-                  handleMultipleDelete();
-                  setIsMultipleDeleteModalOpen(false);
-                }}
-                className="bg-red-600 hover:bg-red-700"
+                type="submit"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white transition-all duration-300 shadow-lg hover:shadow-xl"
               >
-                Supprimer
+                {selectedProduct ? "Modifier" : "Ajouter"}
               </Button>
             </DialogFooter>
-          </DialogContent>
-        </Dialog>
-  
-        <Dialog open={isImagePreviewOpen} onOpenChange={setIsImagePreviewOpen}>
-          <DialogContent className="bg-white/90 backdrop-filter backdrop-blur-lg p-0 max-w-3xl w-full h-full">
-            <DialogTitle className="sr-only">Aperçu de l&apos;image</DialogTitle>
-            <div className="relative w-full h-full flex items-center justify-center">
-              {previewImage ? (
-                <Image
-                  src={previewImage || "/placeholder.svg"}
-                  alt="Aperçu"
-                  className="max-w-full max-h-full object-contain"
-                />
-              ) : (
-                <p className="text-gray-500 text-xl">Aucune image</p>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      </motion.div>
-    );
-  }
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent className="bg-white/90 backdrop-filter backdrop-blur-lg">
+          <DialogHeader>
+            <DialogTitle>Confirmer la suppression</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer ce produit ? Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>
+              Annuler
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+              Supprimer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isMultipleDeleteModalOpen} onOpenChange={setIsMultipleDeleteModalOpen}>
+        <DialogContent className="bg-white/90 backdrop-filter backdrop-blur-lg">
+          <DialogHeader>
+            <DialogTitle>Confirmer la suppression multiple</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer les produits sélectionnés ? Cette action est irréversible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setIsMultipleDeleteModalOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                handleMultipleDelete();
+                setIsMultipleDeleteModalOpen(false);
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Supprimer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isImagePreviewOpen} onOpenChange={setIsImagePreviewOpen}>
+  <DialogContent className="bg-white/90 backdrop-filter backdrop-blur-lg p-0 max-w-3xl w-full h-full">
+    <DialogTitle className="sr-only">Aperçu de l&apos;image</DialogTitle>
+    <div className="relative w-full h-full flex items-center justify-center">
+      {previewImage ? (
+        <Image
+          src={previewImage || "/placeholder.svg"}
+          alt="Aperçu"
+          width={800} // Ajoutez une largeur par défaut
+          height={600} // Ajoutez une hauteur par défaut
+          className="max-w-full max-h-full object-contain"
+        />
+      ) : (
+        <p className="text-gray-500 text-xl">Aucune image</p>
+      )}
+    </div>
+  </DialogContent>
+</Dialog>
+    </motion.div>
+  );
+}

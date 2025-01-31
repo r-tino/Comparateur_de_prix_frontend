@@ -38,7 +38,7 @@ const useProduitStore = create(
 
           if (response.ok) {
             const responseData = await response.json();
-            console.log("Réponse de l'API:", responseData); // Ajoutez cette ligne pour vérifier la réponse
+            console.log("Réponse de l'API:", responseData);
 
             if (responseData.success && Array.isArray(responseData.data.data)) {
               set({
@@ -82,13 +82,20 @@ const useProduitStore = create(
             couverture: produitData.photos[index].couverture || false,
           }));
 
+          // Supprimez `utilisateurId` du payload
+          const { utilisateurId, ...restData } = produitData;
+
           const response = await fetch(API_URL, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify(produitData),
+            body: JSON.stringify({
+              ...restData,
+              utilisateur: { connect: { id_User: utilisateurId } },
+              categorie: { connect: { id_Categorie: produitData.categorieId } },
+            }),
           });
 
           if (response.ok) {
@@ -135,13 +142,20 @@ const useProduitStore = create(
             couverture: updatedData.photos[index].couverture || false,
           }));
 
+          // Supprimez `utilisateurId` du payload
+          const { utilisateurId, ...restData } = updatedData;
+
           const response = await fetch(`${API_URL}/${id_Produit}`, {
             method: "PATCH",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify(updatedData),
+            body: JSON.stringify({
+              ...restData,
+              utilisateur: { connect: { id_User: utilisateurId } },
+              categorie: { connect: { id_Categorie: updatedData.categorieId } },
+            }),
           });
 
           if (response.ok) {

@@ -8,8 +8,8 @@ const API_URL = 'http://localhost:3001/produits'; // Assurez-vous que l'URL corr
 export const uploadImageToCloudinary = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('upload_preset', 'ml_default'); // Utilisez le nom de votre upload preset
-  formData.append('folder', 'échantillons/ecommerce'); // Spécifiez le dossier
+  formData.append('upload_preset', 'multimedia'); // Utilisez le nom de votre upload preset
+  formData.append('folder', 'produit/photo'); // Spécifiez le dossier
 
   const response = await fetch('https://api.cloudinary.com/v1_1/diwlybpuc/image/upload', {
     method: 'POST',
